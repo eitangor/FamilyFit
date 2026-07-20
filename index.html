@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FamilyFit Planner</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div>
+      <h1>FamilyFit Planner</h1>
+      <p>Plan family activities in a few simple steps.</p>
+    </div>
+    <button id="resetAppButton" class="danger-outline" type="button">Reset app data</button>
+  </header>
+
+  <main>
+    <section id="welcomeCard" class="card welcome-card">
+      <button id="dismissWelcomeButton" class="icon-button" type="button" aria-label="Dismiss welcome message">×</button>
+      <h2>What this app helps you do</h2>
+      <p>Create child profiles, save activity ideas, and review activities later when your family is ready to choose one.</p>
+      <p><strong>Estimated setup time:</strong> about 2 minutes.</p>
+    </section>
+
+    <nav class="step-nav" aria-label="Main application steps">
+      <button class="step-button active" data-view="childrenView" type="button">
+          <span class="step-number">1</span>
+          Child Profiles
+      </button>
+
+      <button class="step-button" data-view="addActivityView" type="button">
+          <span class="step-number">2</span>
+          Add Activity
+      </button>
+
+      <button class="step-button" data-view="activitiesView" type="button">
+          <span class="step-number">3</span>
+          Activity List
+      </button>
+    </nav>
+
+    <section id="statusMessage" class="status-message" role="status" aria-live="polite"></section>
+
+    <section id="childrenView" class="view active-view">
+      <div class="card">
+        <div class="section-heading">
+          <div>
+            <h2>Add Child Profile</h2>
+            <p>Add one child at a time. Required fields are marked with an asterisk.</p>
+          </div>
+          <span class="progress-label">Step 1 of 3</span>
+        </div>
+
+        <form id="childForm">
+          <div class="form-grid">
+            <label>
+              Child name *
+              <input id="childName" name="childName" type="text" maxlength="40" required />
+            </label>
+            <label>
+              Age *
+              <input id="childAge" name="childAge" type="number" min="1" max="18" required />
+            </label>
+            <label>
+              Interests
+              <input id="childInterests" name="childInterests" type="text" maxlength="80" placeholder="Soccer, biking, hiking" />
+            </label>
+          </div>
+          <div class="button-row">
+            <button type="submit">Save Child</button>
+            <button id="clearChildFormButton" class="secondary" type="button">Clear form</button>
+            <button class="secondary next-button" data-view="addActivityView" type="button">Next: Add Activity</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <h2>Saved Children</h2>
+        <div id="childrenList" class="item-list"></div>
+      </div>
+    </section>
+
+    <section id="addActivityView" class="view">
+      <div class="card">
+        <div class="section-heading">
+          <div>
+            <h2>Add Activity</h2>
+            <p>Save an activity idea for later. You can submit with the button or by pressing Enter while focused on the form.</p>
+          </div>
+          <span class="progress-label">Step 2 of 3</span>
+        </div>
+
+        <form id="activityForm">
+          <div class="form-grid">
+            <label>
+              Activity name *
+              <input id="activityName" name="activityName" type="text" maxlength="60" required />
+            </label>
+            <label>
+              Category *
+              <select id="activityCategory" name="activityCategory" required>
+                <option value="">Select a category</option>
+                <option>Sports</option>
+                <option>Health</option>
+                <option>Indoor</option>
+                <option>Outdoor</option>
+              </select>
+            </label>
+            <label>
+              Child
+              <select id="activityChild" name="activityChild">
+                <option value="">Whole family / not assigned</option>
+              </select>
+            </label>
+            <label class="wide-field">
+              Description *
+              <textarea id="activityDescription" name="activityDescription" rows="4" maxlength="200" required></textarea>
+            </label>
+          </div>
+
+          <div class="button-row">
+            <button class="secondary back-button" data-view="childrenView" type="button">Back</button>
+            <button type="submit">Save Activity</button>
+            <button id="clearActivityFormButton" class="secondary" type="button">Clear form</button>
+            <button class="secondary next-button" data-view="activitiesView" type="button">Next: View Activities</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section id="activitiesView" class="view">
+      <div class="card">
+        <div class="section-heading">
+          <div>
+            <h2>Saved Activities</h2>
+            <p>All saved activities appear below with their name, category, child, and description.</p>
+          </div>
+          <span class="progress-label">Step 3 of 3</span>
+        </div>
+
+        <div class="button-row">
+          <button class="secondary back-button" data-view="addActivityView" type="button">Back</button>
+          <button id="loadSampleDataButton" class="secondary" type="button">Load 20 sample activities</button>
+        </div>
+
+        <p id="renderTime" class="performance-note"></p>
+        <div id="activitiesList" class="item-list"></div>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="confirmDialog">
+    <form method="dialog">
+      <h2>Confirm reset</h2>
+      <p>This will permanently remove all saved children and activities. This action cannot be undone.</p>
+      <div class="button-row">
+        <button value="cancel" class="secondary">Cancel</button>
+        <button value="confirm" class="danger">Delete all data</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
