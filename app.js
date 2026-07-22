@@ -1,7 +1,6 @@
 const STORAGE_KEYS = {
   children: "familyfit-children",
   activities: "familyfit-activities",
-  welcomeDismissed: "familyfit-welcome-dismissed"
 };
 
 const state = {
@@ -161,7 +160,6 @@ document.getElementById("clearActivityFormButton").addEventListener("click", () 
 
 document.getElementById("dismissWelcomeButton").addEventListener("click", () => {
   document.getElementById("welcomeCard").hidden = true;
-  localStorage.setItem(STORAGE_KEYS.welcomeDismissed, "true");
 });
 
 document.getElementById("resetAppButton").addEventListener("click", () => {
@@ -194,10 +192,6 @@ document.getElementById("loadSampleDataButton").addEventListener("click", () => 
   renderActivities();
   showStatus("Loaded 20 sample activities.");
 });
-
-if (localStorage.getItem(STORAGE_KEYS.welcomeDismissed) === "true") {
-  document.getElementById("welcomeCard").hidden = true;
-}
 
 renderChildren();
 renderActivities();
