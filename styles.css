@@ -64,7 +64,22 @@ main {
   top: 0.5rem;
   border: 0;
   background: transparent;
+  color: #17324d;
   font-size: 1.8rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+}
+
+.icon-button:hover {
+  color: #a61b1b;
+  background: #f2f4f7;
+}
+
+.icon-button:focus {
+  outline: 3px solid #8ec5ff;
+  outline-offset: 2px;
 }
 
 .step-nav {
