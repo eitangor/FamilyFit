@@ -56,3 +56,23 @@ Recommended release tag:
 ```text
 v1.0.0
 ```
+
+
+## Portfolio microservice integrations
+
+FamilyFit's Python `server.py` acts as the Main Program backend. The browser
+communicates only with FamilyFit, and FamilyFit communicates with each
+microservice programmatically over HTTP. No microservice code is imported into
+the Main Program.
+
+Current integrations:
+
+- **Favorites Microservice** — saves activity ideas as favorites and retrieves
+  saved FamilyFit favorites.
+- **Weather Forecast Microservice** — checks the forecast for an activity date
+  and user-friendly location. FamilyFit resolves the location to coordinates
+  before requesting the forecast.
+- **Task Microservice** — adds activities to a Family Plan and retrieves the
+  current plan.
+
+Each service runs in a separate process from FamilyFit.
