@@ -142,10 +142,22 @@
         <div class="button-row">
           <button class="secondary back-button" data-view="addActivityView" type="button">Back</button>
           <button id="loadSampleDataButton" class="secondary" type="button">Load 20 sample activities</button>
+          <button id="viewFavoritesButton" class="secondary" type="button">View Saved Favorites</button>
         </div>
 
         <p id="renderTime" class="performance-note"></p>
         <div id="activitiesList" class="item-list"></div>
+
+        <section id="favoritesPanel" class="favorites-panel" hidden>
+          <div class="section-heading">
+            <div>
+              <h3>Saved Favorites</h3>
+              <p>These activities are retrieved from the Favorites Microservice.</p>
+            </div>
+            <button id="closeFavoritesButton" class="secondary" type="button">Hide Favorites</button>
+          </div>
+          <div id="favoritesList" class="item-list"></div>
+        </section>
       </div>
     </section>
   </main>
