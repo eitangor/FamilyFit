@@ -302,3 +302,44 @@ dialog::backdrop {
 .error-text {
   color: #9b1c1c;
 }
+
+
+.field-help {
+  margin: -0.25rem 0 0;
+  color: #53606c;
+  font-size: 0.9rem;
+}
+
+.microservice-result {
+  margin-top: 0.9rem;
+  padding: 0.8rem 0.95rem;
+  border: 1px solid #cbd5df;
+  border-radius: 0.6rem;
+  background: #f7fafc;
+  line-height: 1.5;
+}
+
+.microservice-result[hidden] {
+  display: none;
+}
+
+.weather-result {
+  border-left: 4px solid #506a7b;
+}
+
+.error-result {
+  border-left: 4px solid #9b1c1c;
+  color: #7a1616;
+  background: #fff7f7;
+}
+
+
+.task-result {
+  border-left: 4px solid #506a7b;
+}
+
+.result-detail {
+  font-size: 0.88rem;
+  color: #53606c;
+  overflow-wrap: anywhere;
+}
