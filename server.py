@@ -17,6 +17,7 @@ app = Flask(__name__, static_folder=str(BASE_DIR), static_url_path="")
 TASK_SERVICE_URL = "http://127.0.0.1:8003"
 WEATHER_SERVICE_URL = "http://127.0.0.1:8002"
 FAVORITES_SERVICE_URL = "http://127.0.0.1:8161"
+GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
 REQUEST_TIMEOUT_SECONDS = 6
 
 
@@ -65,13 +66,106 @@ def create_task():
     return jsonify(_json_from_response(response)), response.status_code
 
 
+@app.get("/api/tasks")
+def get_tasks():
+    """Retrieve FamilyFit planning tasks from the Task Microservice."""
+    try:
+        response = requests.get(
+            f"{TASK_SERVICE_URL}/tasks",
+            timeout=REQUEST_TIMEOUT_SECONDS,
+        )
+    except requests.RequestException:
+        return _service_unavailable("Task")
+
+    return jsonify(_json_from_response(response)), response.status_code
+
+
+def _geocode_location(location):
+    """Resolve a user-friendly place name to coordinates."""
+    try:
+        response = requests.get(
+            GEOCODING_URL,
+            params={
+                "name": location,
+                "count": 1,
+                "language": "en",
+                "format": "json",
+            },
+            timeout=REQUEST_TIMEOUT_SECONDS,
+        )
+    except requests.RequestException:
+        return None, (
+            jsonify({
+                "error": "geocoding_unavailable",
+                "message": "The location service could not be reached.",
+            }),
+            503,
+        )
+
+    if response.status_code != 200:
+        return None, (
+            jsonify({
+                "error": "geocoding_failed",
+                "message": "The location could not be resolved.",
+            }),
+            502,
+        )
+
+    data = _json_from_response(response)
+    results = data.get("results", []) if isinstance(data, dict) else []
+    if not results:
+        return None, (
+            jsonify({
+                "error": "location_not_found",
+                "message": f'No location was found for "{location}".',
+            }),
+            404,
+        )
+
+    result = results[0]
+    return {
+        "lat": result["latitude"],
+        "lon": result["longitude"],
+        "display_name": ", ".join(
+            part for part in [
+                result.get("name"),
+                result.get("admin1"),
+                result.get("country"),
+            ]
+            if part
+        ),
+    }, None
+
+
 @app.get("/api/weather")
 def get_weather():
-    """Request a daily forecast from the Weather Forecast Microservice."""
+    """Resolve a location and request a daily forecast from the Weather Microservice."""
+    location = (request.args.get("location") or "").strip()
+    forecast_date = request.args.get("date")
+
+    # Backward compatibility for activities created during earlier development.
+    lat = request.args.get("lat")
+    lon = request.args.get("lon")
+
+    if location:
+        coordinates, geocode_error = _geocode_location(location)
+        if geocode_error:
+            return geocode_error
+        lat = coordinates["lat"]
+        lon = coordinates["lon"]
+        display_name = coordinates["display_name"]
+    elif lat and lon:
+        display_name = "Saved location"
+    else:
+        return jsonify({
+            "error": "missing_location",
+            "message": "A location is required to check the weather.",
+        }), 400
+
     params = {
-        "lat": request.args.get("lat"),
-        "lon": request.args.get("lon"),
-        "date": request.args.get("date"),
+        "lat": lat,
+        "lon": lon,
+        "date": forecast_date,
     }
 
     try:
@@ -83,7 +177,11 @@ def get_weather():
     except requests.RequestException:
         return _service_unavailable("Weather Forecast")
 
-    return jsonify(_json_from_response(response)), response.status_code
+    payload = _json_from_response(response)
+    if response.ok and isinstance(payload, dict):
+        payload["location"] = display_name
+
+    return jsonify(payload), response.status_code
 
 
 @app.post("/api/favorites")
