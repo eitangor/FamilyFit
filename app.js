@@ -19,6 +19,8 @@ const activityChild = document.getElementById("activityChild");
 const confirmDialog = document.getElementById("confirmDialog");
 const favoritesPanel = document.getElementById("favoritesPanel");
 const favoritesList = document.getElementById("favoritesList");
+const familyPlanPanel = document.getElementById("familyPlanPanel");
+const familyPlanList = document.getElementById("familyPlanList");
 
 function loadArray(key) {
   try {
@@ -71,6 +73,21 @@ function renderChildren() {
   });
 }
 
+function formatActivityDate(dateString) {
+  if (!dateString) {
+    return "Date not set";
+  }
+
+  const date = new Date(`${dateString}T12:00:00`);
+  return Number.isNaN(date.getTime())
+    ? dateString
+    : date.toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric"
+      });
+}
+
 function renderActivities() {
   const start = performance.now();
   activitiesList.innerHTML = "";
@@ -82,19 +99,21 @@ function renderActivities() {
       const card = document.createElement("article");
       card.className = "item-card";
 
-      const weatherDetails = activity.date && activity.latitude && activity.longitude
-        ? `
-          <p><strong>Date:</strong> ${escapeHtml(activity.date)}</p>
-          <p><strong>Coordinates:</strong> ${escapeHtml(activity.latitude)}, ${escapeHtml(activity.longitude)}</p>
-        `
-        : "";
+      const planningDetails = [
+        activity.date
+          ? `<p><strong>Date:</strong> ${escapeHtml(formatActivityDate(activity.date))}</p>`
+          : "",
+        activity.location
+          ? `<p><strong>Location:</strong> ${escapeHtml(activity.location)}</p>`
+          : ""
+      ].join("");
 
       card.innerHTML = `
         <h3>${escapeHtml(activity.name)}</h3>
         <p><strong>Category:</strong> ${escapeHtml(activity.category)}</p>
         <p><strong>Child:</strong> ${escapeHtml(activity.child || "Whole family / not assigned")}</p>
         <p><strong>Description:</strong> ${escapeHtml(activity.description)}</p>
-        ${weatherDetails}
+        ${planningDetails}
         <div class="activity-actions">
           <button
             class="secondary favorite-button"
@@ -115,7 +134,7 @@ function renderActivities() {
             type="button"
             data-activity-index="${index}"
           >
-            Create Task
+            Add to Family Plan
           </button>
         </div>
         <div
@@ -137,7 +156,6 @@ function renderActivities() {
   document.getElementById("renderTime").textContent =
     `Displayed ${state.activities.length} activities in ${elapsed.toFixed(2)} milliseconds.`;
 }
-
 
 async function saveFavorite(activityIndex, button) {
   const activity = state.activities[activityIndex];
@@ -163,7 +181,9 @@ async function saveFavorite(activityIndex, button) {
         description: activity.description,
         data: {
           category: activity.category,
-          child: activity.child || "Whole family / not assigned"
+          child: activity.child || "Whole family / not assigned",
+          date: activity.date || null,
+          location: activity.location || null
         }
       })
     });
@@ -193,12 +213,12 @@ async function checkWeather(activityIndex, button) {
     return;
   }
 
-  if (!activity.date || !activity.latitude || !activity.longitude) {
+  if (!activity.date || (!activity.location && !(activity.latitude && activity.longitude))) {
     result.hidden = false;
     result.className = "microservice-result error-result";
     result.textContent =
-      "Add an activity date, latitude, and longitude before checking the forecast.";
-    showStatus("Weather information is missing for this activity.", "error");
+      "Add a date and location to this activity before checking the forecast.";
+    showStatus("A date and location are needed for the forecast.", "error");
     return;
   }
 
@@ -207,10 +227,16 @@ async function checkWeather(activityIndex, button) {
   button.textContent = "Checking...";
 
   const params = new URLSearchParams({
-    lat: activity.latitude,
-    lon: activity.longitude,
     date: activity.date
   });
+
+  if (activity.location) {
+    params.set("location", activity.location);
+  } else {
+    // Supports activities created during earlier development.
+    params.set("lat", activity.latitude);
+    params.set("lon", activity.longitude);
+  }
 
   try {
     const response = await fetch(`/api/weather?${params.toString()}`);
@@ -223,8 +249,12 @@ async function checkWeather(activityIndex, button) {
     result.hidden = false;
     result.className = "microservice-result weather-result";
     result.innerHTML = `
-      <strong>Weather Forecast Microservice</strong><br>
-      High: ${escapeHtml(data.temp_max_f)}°F · Low: ${escapeHtml(data.temp_min_f)}°F
+      <div class="result-heading">Weather for ${escapeHtml(data.location || activity.location || "activity location")}</div>
+      <div class="forecast-values">
+        <span><strong>High</strong> ${escapeHtml(data.temp_max_f)}°F</span>
+        <span><strong>Low</strong> ${escapeHtml(data.temp_min_f)}°F</span>
+      </div>
+      <div class="service-note">Provided by the Weather Forecast Microservice</div>
     `;
 
     showStatus(`Weather forecast retrieved for "${activity.name}".`);
@@ -242,6 +272,7 @@ async function checkWeather(activityIndex, button) {
   }
 }
 
+
 async function createTask(activityIndex, button) {
   const activity = state.activities[activityIndex];
   const result = document.getElementById(`task-result-${activityIndex}`);
@@ -253,7 +284,7 @@ async function createTask(activityIndex, button) {
 
   button.disabled = true;
   const previousText = button.textContent;
-  button.textContent = "Creating...";
+  button.textContent = "Adding...";
 
   const dueDate = activity.date
     ? `${activity.date}T12:00:00Z`
@@ -284,21 +315,26 @@ async function createTask(activityIndex, button) {
         data.message ||
         data.error ||
         (Array.isArray(data.details) && data.details[0]?.message) ||
-        "Task could not be created.";
+        "Activity could not be added to the family plan.";
       throw new Error(errorMessage);
     }
+
+    const assignee = data.assignee || "Whole family";
+    const dateText = activity.date
+      ? formatActivityDate(activity.date)
+      : "Date to be decided";
 
     result.hidden = false;
     result.className = "microservice-result task-result";
     result.innerHTML = `
-      <strong>Task Microservice</strong><br>
-      Created task for ${escapeHtml(data.assignee || "the family")}.<br>
-      Status: ${escapeHtml(data.status)} · Priority: ${escapeHtml(data.priority)}<br>
-      <span class="result-detail">Task ID: ${escapeHtml(data.task_id)}</span>
+      <div class="result-heading">Added to Family Plan</div>
+      <strong>${escapeHtml(activity.name)}</strong><br>
+      ${escapeHtml(assignee)} · ${escapeHtml(dateText)}
+      <div class="service-note">Tracked by the Task Microservice</div>
     `;
 
-    button.textContent = "✓ Task Created";
-    showStatus(`Task created for "${activity.name}" through the Task Microservice.`);
+    button.textContent = "✓ Added to Plan";
+    showStatus(`"${activity.name}" was added to the family plan.`);
   } catch (error) {
     result.hidden = false;
     result.className = "microservice-result error-result";
@@ -309,6 +345,7 @@ async function createTask(activityIndex, button) {
     button.disabled = false;
   }
 }
+
 
 async function loadFavorites() {
   favoritesPanel.hidden = false;
@@ -353,6 +390,56 @@ async function loadFavorites() {
   }
 }
 
+async function loadFamilyPlan() {
+  familyPlanPanel.hidden = false;
+  familyPlanList.innerHTML = '<div class="empty-state">Loading family plan...</div>';
+
+  try {
+    const response = await fetch("/api/tasks");
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || data.error || "Family plan could not be retrieved.");
+    }
+
+    const tasks = Array.isArray(data.tasks) ? data.tasks : [];
+
+    if (tasks.length === 0) {
+      familyPlanList.innerHTML =
+        '<div class="empty-state">No activities have been added to the family plan yet.</div>';
+      return;
+    }
+
+    familyPlanList.innerHTML = "";
+
+    tasks.forEach((task) => {
+      const card = document.createElement("article");
+      card.className = "item-card plan-card";
+
+      const dueDate = task.due_date
+        ? formatActivityDate(task.due_date.slice(0, 10))
+        : "Date to be decided";
+
+      card.innerHTML = `
+        <h4>${escapeHtml(task.title)}</h4>
+        <p><strong>For:</strong> ${escapeHtml(task.assignee || "Whole family")}</p>
+        <p><strong>When:</strong> ${escapeHtml(dueDate)}</p>
+        <p><strong>Details:</strong> ${escapeHtml(task.description || "No description")}</p>
+        <p class="service-note">Tracked by the Task Microservice</p>
+      `;
+
+      familyPlanList.appendChild(card);
+    });
+
+    showStatus(`Retrieved ${tasks.length} planned activit${tasks.length === 1 ? "y" : "ies"} from the Task Microservice.`);
+  } catch (error) {
+    familyPlanList.innerHTML =
+      `<div class="empty-state error-text">${escapeHtml(error.message || "Task Microservice is unavailable.")}</div>`;
+    showStatus(error.message || "Task Microservice is unavailable.", "error");
+  }
+}
+
+
 function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -395,8 +482,7 @@ activityForm.addEventListener("submit", (event) => {
     category: document.getElementById("activityCategory").value,
     child: activityChild.value,
     date: document.getElementById("activityDate").value,
-    latitude: document.getElementById("activityLatitude").value,
-    longitude: document.getElementById("activityLongitude").value,
+    location: document.getElementById("activityLocation").value.trim(),
     description: document.getElementById("activityDescription").value.trim()
   });
 
@@ -484,6 +570,14 @@ document.getElementById("viewFavoritesButton").addEventListener("click", () => {
 
 document.getElementById("closeFavoritesButton").addEventListener("click", () => {
   favoritesPanel.hidden = true;
+});
+
+document.getElementById("viewFamilyPlanButton").addEventListener("click", () => {
+  loadFamilyPlan();
+});
+
+document.getElementById("closeFamilyPlanButton").addEventListener("click", () => {
+  familyPlanPanel.hidden = true;
 });
 
 renderChildren();
