@@ -17,6 +17,8 @@ const childrenList = document.getElementById("childrenList");
 const activitiesList = document.getElementById("activitiesList");
 const activityChild = document.getElementById("activityChild");
 const confirmDialog = document.getElementById("confirmDialog");
+const favoritesPanel = document.getElementById("favoritesPanel");
+const favoritesList = document.getElementById("favoritesList");
 
 function loadArray(key) {
   try {
@@ -76,7 +78,7 @@ function renderActivities() {
   if (state.activities.length === 0) {
     activitiesList.innerHTML = '<div class="empty-state">No activities have been saved yet.</div>';
   } else {
-    state.activities.forEach((activity) => {
+    state.activities.forEach((activity, index) => {
       const card = document.createElement("article");
       card.className = "item-card";
       card.innerHTML = `
@@ -84,6 +86,15 @@ function renderActivities() {
         <p><strong>Category:</strong> ${escapeHtml(activity.category)}</p>
         <p><strong>Child:</strong> ${escapeHtml(activity.child || "Whole family / not assigned")}</p>
         <p><strong>Description:</strong> ${escapeHtml(activity.description)}</p>
+        <div class="activity-actions">
+          <button
+            class="secondary favorite-button"
+            type="button"
+            data-activity-index="${index}"
+          >
+            ♡ Save Favorite
+          </button>
+        </div>
       `;
       activitiesList.appendChild(card);
     });
@@ -92,6 +103,94 @@ function renderActivities() {
   const elapsed = performance.now() - start;
   document.getElementById("renderTime").textContent =
     `Displayed ${state.activities.length} activities in ${elapsed.toFixed(2)} milliseconds.`;
+}
+
+async function saveFavorite(activityIndex, button) {
+  const activity = state.activities[activityIndex];
+
+  if (!activity) {
+    showStatus("That activity could not be found.", "error");
+    return;
+  }
+
+  button.disabled = true;
+  const previousText = button.textContent;
+  button.textContent = "Saving...";
+
+  try {
+    const response = await fetch("/api/favorites", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        name: activity.name,
+        type: "family_activity",
+        description: activity.description,
+        data: {
+          category: activity.category,
+          child: activity.child || "Whole family / not assigned"
+        }
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.detail || data.message || "Favorite could not be saved.");
+    }
+
+    button.textContent = "♥ Saved";
+    showStatus(`"${activity.name}" was saved through the Favorites Microservice.`);
+  } catch (error) {
+    button.textContent = previousText;
+    showStatus(error.message || "Favorites Microservice is unavailable.", "error");
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function loadFavorites() {
+  favoritesPanel.hidden = false;
+  favoritesList.innerHTML = '<div class="empty-state">Loading favorites...</div>';
+
+  try {
+    const response = await fetch("/api/favorites?type=family_activity");
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.detail || data.message || "Favorites could not be retrieved.");
+    }
+
+    const favorites = Object.entries(data);
+
+    if (favorites.length === 0) {
+      favoritesList.innerHTML =
+        '<div class="empty-state">No FamilyFit favorites have been saved yet.</div>';
+      return;
+    }
+
+    favoritesList.innerHTML = "";
+
+    favorites.forEach(([favoriteId, favorite]) => {
+      const card = document.createElement("article");
+      card.className = "item-card favorite-card";
+      card.innerHTML = `
+        <h4>${escapeHtml(favorite.name)}</h4>
+        <p><strong>Favorite ID:</strong> ${escapeHtml(favoriteId)}</p>
+        <p><strong>Category:</strong> ${escapeHtml(favorite.data?.category || "Not provided")}</p>
+        <p><strong>Child:</strong> ${escapeHtml(favorite.data?.child || "Not provided")}</p>
+        <p><strong>Description:</strong> ${escapeHtml(favorite.description || "Not provided")}</p>
+      `;
+      favoritesList.appendChild(card);
+    });
+
+    showStatus(`Retrieved ${favorites.length} favorite${favorites.length === 1 ? "" : "s"} from the Favorites Microservice.`);
+  } catch (error) {
+    favoritesList.innerHTML =
+      `<div class="empty-state error-text">${escapeHtml(error.message || "Favorites Microservice is unavailable.")}</div>`;
+    showStatus(error.message || "Favorites Microservice is unavailable.", "error");
+  }
 }
 
 function escapeHtml(value) {
@@ -191,6 +290,25 @@ document.getElementById("loadSampleDataButton").addEventListener("click", () => 
   saveState();
   renderActivities();
   showStatus("Loaded 20 sample activities.");
+});
+
+
+activitiesList.addEventListener("click", (event) => {
+  const button = event.target.closest(".favorite-button");
+  if (!button) {
+    return;
+  }
+
+  const activityIndex = Number(button.dataset.activityIndex);
+  saveFavorite(activityIndex, button);
+});
+
+document.getElementById("viewFavoritesButton").addEventListener("click", () => {
+  loadFavorites();
+});
+
+document.getElementById("closeFavoritesButton").addEventListener("click", () => {
+  favoritesPanel.hidden = true;
 });
 
 renderChildren();
