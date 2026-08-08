@@ -81,11 +81,20 @@ function renderActivities() {
     state.activities.forEach((activity, index) => {
       const card = document.createElement("article");
       card.className = "item-card";
+
+      const weatherDetails = activity.date && activity.latitude && activity.longitude
+        ? `
+          <p><strong>Date:</strong> ${escapeHtml(activity.date)}</p>
+          <p><strong>Coordinates:</strong> ${escapeHtml(activity.latitude)}, ${escapeHtml(activity.longitude)}</p>
+        `
+        : "";
+
       card.innerHTML = `
         <h3>${escapeHtml(activity.name)}</h3>
         <p><strong>Category:</strong> ${escapeHtml(activity.category)}</p>
         <p><strong>Child:</strong> ${escapeHtml(activity.child || "Whole family / not assigned")}</p>
         <p><strong>Description:</strong> ${escapeHtml(activity.description)}</p>
+        ${weatherDetails}
         <div class="activity-actions">
           <button
             class="secondary favorite-button"
@@ -94,7 +103,31 @@ function renderActivities() {
           >
             ♡ Save Favorite
           </button>
+          <button
+            class="secondary weather-button"
+            type="button"
+            data-activity-index="${index}"
+          >
+            Check Weather
+          </button>
+          <button
+            class="secondary task-button"
+            type="button"
+            data-activity-index="${index}"
+          >
+            Create Task
+          </button>
         </div>
+        <div
+          id="weather-result-${index}"
+          class="microservice-result weather-result"
+          hidden
+        ></div>
+        <div
+          id="task-result-${index}"
+          class="microservice-result task-result"
+          hidden
+        ></div>
       `;
       activitiesList.appendChild(card);
     });
@@ -104,6 +137,7 @@ function renderActivities() {
   document.getElementById("renderTime").textContent =
     `Displayed ${state.activities.length} activities in ${elapsed.toFixed(2)} milliseconds.`;
 }
+
 
 async function saveFavorite(activityIndex, button) {
   const activity = state.activities[activityIndex];
@@ -145,6 +179,132 @@ async function saveFavorite(activityIndex, button) {
   } catch (error) {
     button.textContent = previousText;
     showStatus(error.message || "Favorites Microservice is unavailable.", "error");
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function checkWeather(activityIndex, button) {
+  const activity = state.activities[activityIndex];
+  const result = document.getElementById(`weather-result-${activityIndex}`);
+
+  if (!activity) {
+    showStatus("That activity could not be found.", "error");
+    return;
+  }
+
+  if (!activity.date || !activity.latitude || !activity.longitude) {
+    result.hidden = false;
+    result.className = "microservice-result error-result";
+    result.textContent =
+      "Add an activity date, latitude, and longitude before checking the forecast.";
+    showStatus("Weather information is missing for this activity.", "error");
+    return;
+  }
+
+  button.disabled = true;
+  const previousText = button.textContent;
+  button.textContent = "Checking...";
+
+  const params = new URLSearchParams({
+    lat: activity.latitude,
+    lon: activity.longitude,
+    date: activity.date
+  });
+
+  try {
+    const response = await fetch(`/api/weather?${params.toString()}`);
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || data.error || "Forecast could not be retrieved.");
+    }
+
+    result.hidden = false;
+    result.className = "microservice-result weather-result";
+    result.innerHTML = `
+      <strong>Weather Forecast Microservice</strong><br>
+      High: ${escapeHtml(data.temp_max_f)}°F · Low: ${escapeHtml(data.temp_min_f)}°F
+    `;
+
+    showStatus(`Weather forecast retrieved for "${activity.name}".`);
+  } catch (error) {
+    result.hidden = false;
+    result.className = "microservice-result error-result";
+    result.textContent = error.message || "Weather Forecast Microservice is unavailable.";
+    showStatus(
+      error.message || "Weather Forecast Microservice is unavailable.",
+      "error"
+    );
+  } finally {
+    button.disabled = false;
+    button.textContent = previousText;
+  }
+}
+
+async function createTask(activityIndex, button) {
+  const activity = state.activities[activityIndex];
+  const result = document.getElementById(`task-result-${activityIndex}`);
+
+  if (!activity) {
+    showStatus("That activity could not be found.", "error");
+    return;
+  }
+
+  button.disabled = true;
+  const previousText = button.textContent;
+  button.textContent = "Creating...";
+
+  const dueDate = activity.date
+    ? `${activity.date}T12:00:00Z`
+    : null;
+
+  const payload = {
+    title: activity.name,
+    description: activity.description,
+    due_date: dueDate,
+    assignee: activity.child || null,
+    status: "not_started",
+    priority: "medium"
+  };
+
+  try {
+    const response = await fetch("/api/tasks", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      const errorMessage =
+        data.message ||
+        data.error ||
+        (Array.isArray(data.details) && data.details[0]?.message) ||
+        "Task could not be created.";
+      throw new Error(errorMessage);
+    }
+
+    result.hidden = false;
+    result.className = "microservice-result task-result";
+    result.innerHTML = `
+      <strong>Task Microservice</strong><br>
+      Created task for ${escapeHtml(data.assignee || "the family")}.<br>
+      Status: ${escapeHtml(data.status)} · Priority: ${escapeHtml(data.priority)}<br>
+      <span class="result-detail">Task ID: ${escapeHtml(data.task_id)}</span>
+    `;
+
+    button.textContent = "✓ Task Created";
+    showStatus(`Task created for "${activity.name}" through the Task Microservice.`);
+  } catch (error) {
+    result.hidden = false;
+    result.className = "microservice-result error-result";
+    result.textContent = error.message || "Task Microservice is unavailable.";
+    button.textContent = previousText;
+    showStatus(error.message || "Task Microservice is unavailable.", "error");
   } finally {
     button.disabled = false;
   }
@@ -234,6 +394,9 @@ activityForm.addEventListener("submit", (event) => {
     name: document.getElementById("activityName").value.trim(),
     category: document.getElementById("activityCategory").value,
     child: activityChild.value,
+    date: document.getElementById("activityDate").value,
+    latitude: document.getElementById("activityLatitude").value,
+    longitude: document.getElementById("activityLongitude").value,
     description: document.getElementById("activityDescription").value.trim()
   });
 
@@ -294,13 +457,25 @@ document.getElementById("loadSampleDataButton").addEventListener("click", () => 
 
 
 activitiesList.addEventListener("click", (event) => {
-  const button = event.target.closest(".favorite-button");
-  if (!button) {
+  const favoriteButton = event.target.closest(".favorite-button");
+  if (favoriteButton) {
+    const activityIndex = Number(favoriteButton.dataset.activityIndex);
+    saveFavorite(activityIndex, favoriteButton);
     return;
   }
 
-  const activityIndex = Number(button.dataset.activityIndex);
-  saveFavorite(activityIndex, button);
+  const weatherButton = event.target.closest(".weather-button");
+  if (weatherButton) {
+    const activityIndex = Number(weatherButton.dataset.activityIndex);
+    checkWeather(activityIndex, weatherButton);
+    return;
+  }
+
+  const taskButton = event.target.closest(".task-button");
+  if (taskButton) {
+    const activityIndex = Number(taskButton.dataset.activityIndex);
+    createTask(activityIndex, taskButton);
+  }
 });
 
 document.getElementById("viewFavoritesButton").addEventListener("click", () => {
