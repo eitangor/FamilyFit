@@ -343,3 +343,33 @@ dialog::backdrop {
   color: #53606c;
   overflow-wrap: anywhere;
 }
+
+
+.plan-card h4 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+
+.result-heading {
+  font-weight: 800;
+  margin-bottom: 0.35rem;
+}
+
+.forecast-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 0.35rem 0;
+}
+
+.service-note {
+  margin-top: 0.45rem;
+  font-size: 0.82rem;
+  color: #5d6975;
+}
+
+.task-button,
+.weather-button,
+.favorite-button {
+  min-width: 9rem;
+}
