@@ -113,10 +113,27 @@
                 <option value="">Whole family / not assigned</option>
               </select>
             </label>
+            <label>
+              Activity date
+              <input id="activityDate" name="activityDate" type="date" />
+            </label>
+            <label>
+              Location
+              <input
+                id="activityLocation"
+                name="activityLocation"
+                type="text"
+                maxlength="100"
+                placeholder="Seattle, WA"
+              />
+            </label>
             <label class="wide-field">
               Description *
               <textarea id="activityDescription" name="activityDescription" rows="4" maxlength="200" required></textarea>
             </label>
+            <p class="field-help wide-field">
+              Date and location are optional, but both are needed to check the weather forecast.
+            </p>
           </div>
 
           <div class="button-row">
@@ -143,6 +160,7 @@
           <button class="secondary back-button" data-view="addActivityView" type="button">Back</button>
           <button id="loadSampleDataButton" class="secondary" type="button">Load 20 sample activities</button>
           <button id="viewFavoritesButton" class="secondary" type="button">View Saved Favorites</button>
+          <button id="viewFamilyPlanButton" class="secondary" type="button">View Family Plan</button>
         </div>
 
         <p id="renderTime" class="performance-note"></p>
@@ -157,6 +175,17 @@
             <button id="closeFavoritesButton" class="secondary" type="button">Hide Favorites</button>
           </div>
           <div id="favoritesList" class="item-list"></div>
+        </section>
+
+        <section id="familyPlanPanel" class="favorites-panel" hidden>
+          <div class="section-heading">
+            <div>
+              <h3>Family Plan</h3>
+              <p>Activities added to the plan are retrieved from the Task Microservice.</p>
+            </div>
+            <button id="closeFamilyPlanButton" class="secondary" type="button">Hide Family Plan</button>
+          </div>
+          <div id="familyPlanList" class="item-list"></div>
         </section>
       </div>
     </section>
